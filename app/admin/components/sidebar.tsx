@@ -20,6 +20,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import Image from 'next/image'
 
 interface SidebarProps {
   userFullName: string | null
@@ -88,12 +89,25 @@ export default function Sidebar({ userFullName }: SidebarProps) {
         <div className="border-b p-4">
           {isCollapsed ? (
             <div className="flex justify-center">
-              <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center">
-                <span className="text-xs font-bold text-primary">A</span>
-              </div>
+              <Image
+                src="/mini-logo.png"
+                alt="Improve ME Institute"
+                width={32}
+                height={32}
+                className="h-8 w-8 object-contain"
+              />
             </div>
           ) : (
             <>
+              <div className="mb-2">
+                <Image
+                  src="/logo.png"
+                  alt="Improve ME Institute"
+                  width={180}
+                  height={50}
+                  className="h-14 w-auto object-contain"
+                />
+              </div>
               <h2 className="text-lg font-semibold">Admin Panel</h2>
               <p className="text-sm text-muted-foreground truncate">{userFullName}</p>
             </>
