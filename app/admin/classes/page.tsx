@@ -366,37 +366,6 @@ export default function ClassesPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="subjectId">Subject (Optional)</Label>
-              <Select
-                value={watch('subjectId') || 'none'}
-                onValueChange={(value) => {
-                  setValue('subjectId', value === 'none' ? undefined : value, { shouldValidate: true })
-                }}
-              >
-                <SelectTrigger id="subjectId">
-                  <SelectValue placeholder="Select a subject (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {subjects.length === 0 ? (
-                    <SelectItem value="no-subjects" disabled>
-                      No subjects available
-                    </SelectItem>
-                  ) : (
-                    subjects.map((subject) => (
-                      <SelectItem key={subject.id} value={subject.id}>
-                        {subject.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-              {errors.subjectId && (
-                <p className="text-sm text-destructive">{errors.subjectId.message as string}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="yearGroupId">Year Group (Optional)</Label>
               <Select
                 value={watch('yearGroupId') || 'none'}
