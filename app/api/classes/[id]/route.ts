@@ -16,6 +16,8 @@ export async function GET(
       .select(`
         *,
         users!classes_teacher_id_fkey(id, full_name, email),
+        subjects(id, name),
+        year_groups(id, name),
         class_students(
           student_id,
           students(id, full_name, school_year_group)
@@ -27,8 +29,9 @@ export async function GET(
     if (classError) throw classError
 
     return NextResponse.json(classData)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error'
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }
 
@@ -45,8 +48,9 @@ export async function DELETE(
 
     if (error) throw error
     return NextResponse.json({ success: true })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Bad request'
+    return NextResponse.json({ error: errorMessage }, { status: 400 })
   }
 }
 

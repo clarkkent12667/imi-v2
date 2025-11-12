@@ -26,6 +26,8 @@ export const classSchema = z.object({
   name: z.string().min(1, 'Class name is required'),
   teacherId: z.string().uuid('Invalid teacher ID'),
   studentIds: z.array(z.string().uuid()).min(1, 'At least one student is required'),
+  subjectId: z.string().uuid('Invalid subject ID').optional(),
+  yearGroupId: z.string().uuid('Invalid year group ID').optional(),
 })
 
 export const scheduleSchema = z.object({

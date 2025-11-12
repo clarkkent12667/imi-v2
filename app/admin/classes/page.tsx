@@ -39,11 +39,21 @@ interface Class {
   id: string
   name: string
   teacher_id: string
+  subject_id?: string | null
+  year_group_id?: string | null
   users: {
     id: string
     full_name: string
     email: string
   }
+  subjects?: {
+    id: string
+    name: string
+  } | null
+  year_groups?: {
+    id: string
+    name: string
+  } | null
   created_at: string
 }
 
@@ -59,10 +69,22 @@ interface Student {
   school_year_group: string
 }
 
+interface Subject {
+  id: string
+  name: string
+}
+
+interface YearGroup {
+  id: string
+  name: string
+}
+
 export default function ClassesPage() {
   const [classes, setClasses] = useState<Class[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [students, setStudents] = useState<Student[]>([])
+  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [yearGroups, setYearGroups] = useState<YearGroup[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showDialog, setShowDialog] = useState(false)
@@ -71,7 +93,6 @@ export default function ClassesPage() {
 
   const {
     register,
-    handleSubmit,
     reset,
     setValue,
     watch,
@@ -87,27 +108,34 @@ export default function ClassesPage() {
       hasFetchedRef.current = true
       setIsLoading(true)
       
-      const [classesRes, teachersRes, studentsRes] = await Promise.all([
+      const [classesRes, teachersRes, studentsRes, subjectsRes, yearGroupsRes] = await Promise.all([
         fetch('/api/classes'),
         fetch('/api/users'),
         fetch('/api/students'),
+        fetch('/api/taxonomy/subjects'),
+        fetch('/api/year-groups'),
       ])
 
-      if (!classesRes.ok || !teachersRes.ok || !studentsRes.ok) {
+      if (!classesRes.ok || !teachersRes.ok || !studentsRes.ok || !subjectsRes.ok || !yearGroupsRes.ok) {
         throw new Error('Failed to fetch data')
       }
 
-      const [classesData, teachersData, studentsData] = await Promise.all([
+      const [classesData, teachersData, studentsData, subjectsData, yearGroupsData] = await Promise.all([
         classesRes.json(),
         teachersRes.json(),
         studentsRes.json(),
+        subjectsRes.json(),
+        yearGroupsRes.json(),
       ])
 
       setClasses(classesData)
       setTeachers(teachersData)
       setStudents(studentsData)
-    } catch (error: any) {
-      toast.error(error.message)
+      setSubjects(subjectsData)
+      setYearGroups(yearGroupsData)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch data'
+      toast.error(errorMessage)
       hasFetchedRef.current = false // Reset on error so it can retry
     } finally {
       setIsLoading(false)
@@ -129,6 +157,8 @@ export default function ClassesPage() {
       name: watch('name') || '',
       teacherId: watch('teacherId') || '',
       studentIds: selectedStudents,
+      subjectId: watch('subjectId') || undefined,
+      yearGroupId: watch('yearGroupId') || undefined,
     }
 
     try {
@@ -164,6 +194,8 @@ export default function ClassesPage() {
           name: formData.name.trim(),
           teacherId: formData.teacherId,
           studentIds: formData.studentIds,
+          subjectId: formData.subjectId,
+          yearGroupId: formData.yearGroupId,
         }),
       })
 
@@ -179,17 +211,13 @@ export default function ClassesPage() {
       setSelectedStudents([])
       hasFetchedRef.current = false // Reset to allow refetch
       await fetchData()
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating class:', error)
-      toast.error(error.message || 'Failed to create class')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create class'
+      toast.error(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  const onSubmit = async (data: any) => {
-    // Use the manual handler instead
-    await handleCreateClass()
   }
 
   const handleDelete = async (id: string) => {
@@ -205,8 +233,9 @@ export default function ClassesPage() {
       toast.success('Class deleted successfully')
       hasFetchedRef.current = false // Reset to allow refetch
       await fetchData()
-    } catch (error: any) {
-      toast.error(error.message)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete class'
+      toast.error(errorMessage)
     }
   }
 
@@ -247,6 +276,8 @@ export default function ClassesPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Teacher</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Year Group</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -256,6 +287,8 @@ export default function ClassesPage() {
                   <TableRow key={classItem.id}>
                     <TableCell className="font-medium">{classItem.name}</TableCell>
                     <TableCell>{classItem.users?.full_name || 'N/A'}</TableCell>
+                    <TableCell>{classItem.subjects?.name || 'N/A'}</TableCell>
+                    <TableCell>{classItem.year_groups?.name || 'N/A'}</TableCell>
                     <TableCell>
                       {classItem.created_at
                         ? new Date(classItem.created_at).toLocaleDateString()
@@ -329,6 +362,68 @@ export default function ClassesPage() {
               </Select>
               {errors.teacherId && (
                 <p className="text-sm text-destructive">{errors.teacherId.message as string}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="subjectId">Subject (Optional)</Label>
+              <Select
+                value={watch('subjectId') || 'none'}
+                onValueChange={(value) => {
+                  setValue('subjectId', value === 'none' ? undefined : value, { shouldValidate: true })
+                }}
+              >
+                <SelectTrigger id="subjectId">
+                  <SelectValue placeholder="Select a subject (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {subjects.length === 0 ? (
+                    <SelectItem value="no-subjects" disabled>
+                      No subjects available
+                    </SelectItem>
+                  ) : (
+                    subjects.map((subject) => (
+                      <SelectItem key={subject.id} value={subject.id}>
+                        {subject.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {errors.subjectId && (
+                <p className="text-sm text-destructive">{errors.subjectId.message as string}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="yearGroupId">Year Group (Optional)</Label>
+              <Select
+                value={watch('yearGroupId') || 'none'}
+                onValueChange={(value) => {
+                  setValue('yearGroupId', value === 'none' ? undefined : value, { shouldValidate: true })
+                }}
+              >
+                <SelectTrigger id="yearGroupId">
+                  <SelectValue placeholder="Select a year group (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {yearGroups.length === 0 ? (
+                    <SelectItem value="no-year-groups" disabled>
+                      No year groups available
+                    </SelectItem>
+                  ) : (
+                    yearGroups.map((yearGroup) => (
+                      <SelectItem key={yearGroup.id} value={yearGroup.id}>
+                        {yearGroup.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {errors.yearGroupId && (
+                <p className="text-sm text-destructive">{errors.yearGroupId.message as string}</p>
               )}
             </div>
 

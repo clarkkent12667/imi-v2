@@ -5,7 +5,7 @@ import { classSchema } from '@/lib/validations'
 
 export async function GET() {
   try {
-    const user = await requireAuth('admin')
+    await requireAuth('admin')
     const supabase = await createClient()
     
     const { data, error } = await supabase
@@ -16,14 +16,19 @@ export async function GET() {
         teacher_id,
         created_by,
         created_at,
-        users!classes_teacher_id_fkey(id, full_name, email)
+        subject_id,
+        year_group_id,
+        users!classes_teacher_id_fkey(id, full_name, email),
+        subjects(id, name),
+        year_groups(id, name)
       `)
       .order('created_at', { ascending: false })
 
     if (error) throw error
     return NextResponse.json(data)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error'
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }
 
@@ -41,6 +46,8 @@ export async function POST(request: NextRequest) {
         name: validated.name,
         teacher_id: validated.teacherId,
         created_by: user.id,
+        subject_id: validated.subjectId || null,
+        year_group_id: validated.yearGroupId || null,
       })
       .select()
       .single()
@@ -62,8 +69,9 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(classData, { status: 201 })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Bad request'
+    return NextResponse.json({ error: errorMessage }, { status: 400 })
   }
 }
 
