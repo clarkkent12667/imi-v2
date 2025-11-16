@@ -4,6 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Calendar, Users, BookOpen, Clock, TrendingUp, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { cache } from 'react'
+
+// Cache work records query
+const getTeacherWorkRecordsStats = cache(async (supabase: any, teacherId: string) => {
+  return await supabase
+    .from('work_records')
+    .select('marks_obtained, total_marks, percentage')
+    .eq('teacher_id', teacherId)
+    .limit(500) // Reduced from 1000 for better performance
+})
 
 export default async function TeacherDashboardPage() {
   const user = await requireAuth('teacher')
@@ -33,11 +43,7 @@ export default async function TeacherDashboardPage() {
       .from('work_records')
       .select('id', { count: 'exact', head: true })
       .eq('teacher_id', user.id),
-    supabase
-      .from('work_records')
-      .select('marks_obtained, total_marks, percentage')
-      .eq('teacher_id', user.id)
-      .limit(1000),
+    getTeacherWorkRecordsStats(supabase, user.id),
     supabase
       .from('work_records')
       .select(
@@ -134,7 +140,7 @@ export default async function TeacherDashboardPage() {
             </Card>
           )
           return stat.href ? (
-            <Link key={stat.title} href={stat.href}>
+            <Link key={stat.title} href={stat.href} prefetch={true}>
               {content}
             </Link>
           ) : (
@@ -184,7 +190,7 @@ export default async function TeacherDashboardPage() {
               <p className="text-sm text-muted-foreground">No work records yet</p>
             )}
             {classes && classes.length > 0 && (
-              <Link href="/teacher/classes" className="text-sm text-primary hover:underline mt-4 block">
+              <Link href="/teacher/classes" prefetch={true} className="text-sm text-primary hover:underline mt-4 block">
                 View all classes →
               </Link>
             )}
@@ -247,7 +253,7 @@ export default async function TeacherDashboardPage() {
               <p className="text-sm text-muted-foreground">No upcoming due dates</p>
             )}
             {classes && classes.length > 0 && (
-              <Link href="/teacher/classes" className="text-sm text-primary hover:underline mt-4 block">
+              <Link href="/teacher/classes" prefetch={true} className="text-sm text-primary hover:underline mt-4 block">
                 View all classes →
               </Link>
             )}
@@ -260,7 +266,7 @@ export default async function TeacherDashboardPage() {
           <h2 className="mb-4 text-xl font-semibold">Your Classes</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {classes.map((classItem) => (
-              <Link key={classItem.id} href={`/teacher/classes/${classItem.id}`}>
+              <Link key={classItem.id} href={`/teacher/classes/${classItem.id}`} prefetch={true}>
                 <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
                   <CardHeader>
                     <CardTitle>{classItem.name}</CardTitle>

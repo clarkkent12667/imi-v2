@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { cache } from 'react'
 
 export type UserRole = 'admin' | 'teacher'
 
-export async function getCurrentUser() {
+// Cache the user lookup per request to avoid duplicate queries
+export const getCurrentUser = cache(async () => {
   const supabase = await createClient()
   const {
     data: { user },
@@ -62,7 +64,7 @@ export async function getCurrentUser() {
     role: profile?.role as UserRole | null,
     fullName: profile?.full_name as string | null,
   }
-}
+})
 
 export async function requireAuth(requiredRole?: UserRole) {
   const user = await getCurrentUser()

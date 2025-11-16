@@ -15,6 +15,9 @@ export async function GET() {
         full_name, 
         school_year_group,
         year_group_id,
+        parent_name,
+        parent_email,
+        parent_phone,
         created_at,
         year_groups (
           id,
@@ -57,6 +60,9 @@ export async function POST(request: NextRequest) {
         full_name: validated.fullName,
         year_group_id: validated.yearGroupId,
         school_year_group: yearGroup?.name || '', // Keep for backward compatibility
+        parent_name: validated.parentName || null,
+        parent_email: validated.parentEmail || null,
+        parent_phone: validated.parentPhone || null,
         created_by: user.id,
       })
       .select()

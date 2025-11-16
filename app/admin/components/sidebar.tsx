@@ -18,6 +18,7 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  AlertTriangle,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
@@ -61,6 +62,7 @@ export default function Sidebar({ userFullName }: SidebarProps) {
     { href: '/admin/classes', label: 'Classes', icon: Calendar },
     { href: '/admin/schedule', label: 'Schedule', icon: CalendarDays },
     { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
+    { href: '/admin/interventions', label: 'Interventions', icon: AlertTriangle },
     { href: '/admin/reports', label: 'Reports', icon: FileText },
   ]
 
@@ -123,6 +125,7 @@ export default function Sidebar({ userFullName }: SidebarProps) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={true}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   isActive
                     ? 'bg-primary text-primary-foreground'

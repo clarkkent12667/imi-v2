@@ -15,6 +15,9 @@ export const loginSchema = z.object({
 export const studentSchema = z.object({
   fullName: z.string().min(1, 'Full name is required'),
   yearGroupId: z.string().uuid('Invalid year group ID'),
+  parentName: z.string().optional(),
+  parentEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
+  parentPhone: z.string().optional(),
 })
 
 export const teacherSchema = z.object({
@@ -26,7 +29,7 @@ export const classSchema = z.object({
   name: z.string().min(1, 'Class name is required'),
   teacherId: z.string().uuid('Invalid teacher ID'),
   studentIds: z.array(z.string().uuid()).min(1, 'At least one student is required'),
-  subjectId: z.string().uuid('Invalid subject ID').optional(),
+  subjectId: z.string().uuid('Invalid subject ID'),
   yearGroupId: z.string().uuid('Invalid year group ID').optional(),
 })
 
@@ -44,16 +47,33 @@ export const scheduleSchema = z.object({
 export const workRecordSchema = z.object({
   classId: z.string().uuid('Invalid class ID'),
   studentId: z.string().uuid('Invalid student ID'),
-  workType: z.enum(['homework', 'classwork']),
-  workTitle: z.string().min(1, 'Work title is required'),
+  workType: z.enum(['homework', 'classwork', 'past_paper']),
+  workTitle: z
+    .preprocess(
+      (val) => (val === '' || val === null || val === undefined ? undefined : val),
+      z.string().min(1, 'Work title must not be empty').optional()
+    )
+    .optional(),
   qualificationId: z.string().uuid('Invalid qualification ID'),
   examBoardId: z.string().uuid('Invalid exam board ID'),
   subjectId: z.string().uuid('Invalid subject ID'),
-  topicId: z.string().uuid().optional(),
-  subtopicId: z.string().uuid().optional(),
+  topicId: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? undefined : val),
+    z.string().uuid('Invalid topic ID').optional()
+  ),
+  subtopicId: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? undefined : val),
+    z.string().uuid('Invalid subtopic ID').optional()
+  ),
   assignedDate: z.string().date('Invalid date'),
   marksObtained: z.number().min(0, 'Marks cannot be negative'),
   totalMarks: z.number().min(1, 'Total marks must be at least 1'),
+  status: z.enum(['not_submitted', 'submitted', 'resit', 're_assigned']).optional(),
+  year: z.number().int().min(2000).max(2100).optional(),
+}).refine((data) => {
+  // For past_paper, topic and subtopic are not required
+  // For homework/classwork, topic/subtopic are optional but can be provided
+  return true
 })
 
 export const taxonomyItemSchema = z.object({

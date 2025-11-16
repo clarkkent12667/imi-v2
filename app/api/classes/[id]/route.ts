@@ -7,16 +7,26 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth('admin')
+    const user = await requireAuth()
     const supabase = await createClient()
     const { id } = await params
 
-    const { data: classData, error: classError } = await supabase
+    let query = supabase
       .from('classes')
       .select(`
         *,
         users!classes_teacher_id_fkey(id, full_name, email),
-        subjects(id, name),
+        subjects(
+          id, 
+          name,
+          exam_board_id,
+          exam_boards(
+            id,
+            name,
+            qualification_id,
+            qualifications(id, name)
+          )
+        ),
         year_groups(id, name),
         class_students(
           student_id,
@@ -25,6 +35,13 @@ export async function GET(
       `)
       .eq('id', id)
       .single()
+
+    // If teacher, only allow access to their own classes
+    if (user.role === 'teacher') {
+      query = query.eq('teacher_id', user.id)
+    }
+
+    const { data: classData, error: classError } = await query
 
     if (classError) throw classError
 

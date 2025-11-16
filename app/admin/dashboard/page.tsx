@@ -4,6 +4,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Users, GraduationCap, BookOpen, Calendar, Building2, Layers, FileText, Clock, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { cache } from 'react'
+import { Suspense } from 'react'
+import PopulateSampleDataButton from '@/components/admin/populate-sample-data-button'
+
+// Cache the work records query to avoid duplicate fetches
+const getWorkRecordsStats = cache(async (supabase: any) => {
+  return await supabase
+    .from('work_records')
+    .select('marks_obtained, total_marks, percentage')
+    .limit(500) // Reduced from 1000 for better performance
+})
 
 export default async function AdminDashboardPage() {
   await requireAuth('admin')
@@ -29,10 +40,7 @@ export default async function AdminDashboardPage() {
     supabase.from('qualifications').select('id', { count: 'exact', head: true }),
     supabase.from('departments').select('id', { count: 'exact', head: true }),
     supabase.from('year_groups').select('id', { count: 'exact', head: true }),
-    supabase
-      .from('work_records')
-      .select('marks_obtained, total_marks, percentage')
-      .limit(1000),
+    getWorkRecordsStats(supabase),
     supabase
       .from('work_records')
       .select(
@@ -146,9 +154,12 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <p className="text-muted-foreground">Overview of your educational management system</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <p className="text-muted-foreground">Overview of your educational management system</p>
+        </div>
+        <PopulateSampleDataButton />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
@@ -167,7 +178,7 @@ export default async function AdminDashboardPage() {
             </Card>
           )
           return stat.href ? (
-            <Link key={stat.title} href={stat.href}>
+            <Link key={stat.title} href={stat.href} prefetch={true}>
               {content}
             </Link>
           ) : (
@@ -216,7 +227,7 @@ export default async function AdminDashboardPage() {
             ) : (
               <p className="text-sm text-muted-foreground">No work records yet</p>
             )}
-            <Link href="/admin/reports" className="text-sm text-primary hover:underline mt-4 block">
+            <Link href="/admin/reports" prefetch={true} className="text-sm text-primary hover:underline mt-4 block">
               View all reports →
             </Link>
           </CardContent>
@@ -276,7 +287,7 @@ export default async function AdminDashboardPage() {
             ) : (
               <p className="text-sm text-muted-foreground">No upcoming due dates</p>
             )}
-            <Link href="/admin/reports" className="text-sm text-primary hover:underline mt-4 block">
+            <Link href="/admin/reports" prefetch={true} className="text-sm text-primary hover:underline mt-4 block">
               View all reports →
             </Link>
           </CardContent>

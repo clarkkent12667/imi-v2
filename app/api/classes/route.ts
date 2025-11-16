@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
         name: validated.name,
         teacher_id: validated.teacherId,
         created_by: user.id,
-        subject_id: validated.subjectId || null,
+        subject_id: validated.subjectId,
         year_group_id: validated.yearGroupId || null,
       })
       .select()

@@ -107,34 +107,39 @@ export default function CreateWorkRecordPage() {
     const res = await fetch(`/api/taxonomy/exam-boards?qualification_id=${qualificationId}`)
     const data = await res.json()
     setExamBoards(data)
-    setValue('examBoardId', '')
-    setValue('subjectId', '')
-    setValue('topicId', '')
-    setValue('subtopicId', '')
+    setValue('examBoardId', undefined as any)
+    setValue('subjectId', undefined as any)
+    setValue('topicId', undefined as any)
+    setValue('subtopicId', undefined as any)
+    setTopics([])
+    setSubtopics([])
   }
 
   const fetchSubjects = async (examBoardId: string) => {
     const res = await fetch(`/api/taxonomy/subjects?exam_board_id=${examBoardId}`)
     const data = await res.json()
     setSubjects(data)
-    setValue('subjectId', '')
-    setValue('topicId', '')
-    setValue('subtopicId', '')
+    setValue('subjectId', undefined as any)
+    setValue('topicId', undefined as any)
+    setValue('subtopicId', undefined as any)
+    setTopics([])
+    setSubtopics([])
   }
 
   const fetchTopics = async (subjectId: string) => {
     const res = await fetch(`/api/taxonomy/topics?subject_id=${subjectId}`)
     const data = await res.json()
     setTopics(data)
-    setValue('topicId', '')
-    setValue('subtopicId', '')
+    setValue('topicId', undefined as any)
+    setValue('subtopicId', undefined as any)
+    setSubtopics([])
   }
 
   const fetchSubtopics = async (topicId: string) => {
     const res = await fetch(`/api/taxonomy/subtopics?topic_id=${topicId}`)
     const data = await res.json()
     setSubtopics(data)
-    setValue('subtopicId', '')
+    setValue('subtopicId', undefined as any)
   }
 
   const onSubmit = async (data: any) => {
@@ -323,15 +328,17 @@ export default function CreateWorkRecordPage() {
               <div className="space-y-2">
                 <Label htmlFor="topicId">Topic (Optional)</Label>
                 <Select
-                  value={watch('topicId') || ''}
-                  onValueChange={(value) => setValue('topicId', value)}
+                  value={watch('topicId') || 'none'}
+                  onValueChange={(value) => {
+                    setValue('topicId', value === 'none' ? undefined : value)
+                  }}
                   disabled={!selectedSubject}
                 >
                   <SelectTrigger id="topicId">
                     <SelectValue placeholder="Select topic (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {topics.map((topic) => (
                       <SelectItem key={topic.id} value={topic.id}>
                         {topic.name}
@@ -345,15 +352,17 @@ export default function CreateWorkRecordPage() {
             <div className="space-y-2">
               <Label htmlFor="subtopicId">Subtopic (Optional)</Label>
               <Select
-                value={watch('subtopicId') || ''}
-                onValueChange={(value) => setValue('subtopicId', value)}
+                value={watch('subtopicId') || 'none'}
+                onValueChange={(value) => {
+                  setValue('subtopicId', value === 'none' ? undefined : value)
+                }}
                 disabled={!selectedTopic}
               >
                 <SelectTrigger id="subtopicId">
                   <SelectValue placeholder="Select subtopic (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {subtopics.map((subtopic) => (
                     <SelectItem key={subtopic.id} value={subtopic.id}>
                       {subtopic.name}

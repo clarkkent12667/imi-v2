@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Educational Management System",
+  title: "Improve ME Institute",
   description: "Manage classes, students, and track academic progress",
 };
 

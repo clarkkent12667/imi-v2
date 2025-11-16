@@ -29,6 +29,21 @@ export async function PUT(
     const assignedDate = new Date(validated.assignedDate)
     const dueDate = calculateDueDate(assignedDate)
 
+    // For past paper, ensure topic and subtopic are null
+    const topicId = validated.workType === 'past_paper' ? null : validated.topicId || null
+    const subtopicId = validated.workType === 'past_paper' ? null : validated.subtopicId || null
+
+    // Auto-set status based on percentage if marks are provided
+    let status = validated.status || 'not_submitted'
+    if (validated.marksObtained > 0 && validated.totalMarks > 0) {
+      const percentage = (validated.marksObtained / validated.totalMarks) * 100
+      if (percentage >= 80) {
+        status = 'submitted'
+      } else {
+        status = 'resit'
+      }
+    }
+
     const { data, error } = await supabase
       .from('work_records')
       .update({
@@ -37,12 +52,14 @@ export async function PUT(
         qualification_id: validated.qualificationId,
         exam_board_id: validated.examBoardId,
         subject_id: validated.subjectId,
-        topic_id: validated.topicId || null,
-        subtopic_id: validated.subtopicId || null,
+        topic_id: topicId,
+        subtopic_id: subtopicId,
         assigned_date: validated.assignedDate,
         due_date: dueDate.toISOString().split('T')[0],
         marks_obtained: validated.marksObtained,
         total_marks: validated.totalMarks,
+        status: status,
+        year: validated.year || null,
       })
       .eq('id', id)
       .select()

@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft } from 'lucide-react'
+import DeleteWorkRecordButton from '@/components/teacher/delete-work-record-button'
 
 export default async function StudentProgressPage({
   params,
@@ -76,11 +77,16 @@ export default async function StudentProgressPage({
             Back to Class
           </Button>
         </Link>
-        <div>
-          <h1 className="text-3xl font-bold">{student.full_name}</h1>
-          <p className="text-muted-foreground">
-            {student.school_year_group} - Progress Tracking
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">{student.full_name}</h1>
+            <p className="text-muted-foreground">
+              {student.school_year_group} - Progress Tracking
+            </p>
+          </div>
+          <Link href={`/teacher/classes/${id}/students/${studentId}/record-work-sheet`}>
+            <Button>Record Work (Sheet View)</Button>
+          </Link>
         </div>
       </div>
 
@@ -135,18 +141,35 @@ export default async function StudentProgressPage({
                   <TableHead>Subject</TableHead>
                   <TableHead>Marks</TableHead>
                   <TableHead>Percentage</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {workRecords.map((record: any) => (
-                  <TableRow key={record.id}>
+                {workRecords.map((record: any) => {
+                  const percentage = record.percentage || 0
+                  const isWeak = percentage > 0 && percentage < 80
+                  
+                  return (
+                  <TableRow 
+                    key={record.id}
+                    className={isWeak ? 'bg-red-100 dark:bg-red-950/30' : ''}
+                  >
                     <TableCell>
                       {new Date(record.assigned_date).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="font-medium">{record.work_title}</TableCell>
                     <TableCell>
-                      <Badge variant={record.work_type === 'homework' ? 'default' : 'secondary'}>
-                        {record.work_type}
+                      <Badge
+                        variant={
+                          record.work_type === 'homework'
+                            ? 'default'
+                            : record.work_type === 'classwork'
+                            ? 'secondary'
+                            : 'outline'
+                        }
+                      >
+                        {record.work_type === 'past_paper' ? 'Past Paper' : record.work_type}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -170,8 +193,33 @@ export default async function StudentProgressPage({
                         {record.percentage?.toFixed(1)}%
                       </Badge>
                     </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          record.status === 'submitted'
+                            ? 'default'
+                            : record.status === 'resit'
+                            ? 'secondary'
+                            : record.status === 're_assigned'
+                            ? 'outline'
+                            : 'destructive'
+                        }
+                      >
+                        {record.status === 'not_submitted'
+                          ? 'Not Submitted'
+                          : record.status === 'submitted'
+                          ? 'Submitted'
+                          : record.status === 'resit'
+                          ? 'Resit'
+                          : 'Re-assigned'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DeleteWorkRecordButton workRecordId={record.id} />
+                    </TableCell>
                   </TableRow>
-                ))}
+                  )
+                })}
               </TableBody>
             </Table>
           )}

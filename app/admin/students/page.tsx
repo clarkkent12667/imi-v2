@@ -40,6 +40,9 @@ interface Student {
   school_year_group?: string
   year_group_id?: string
   year_group_name?: string
+  parent_name?: string
+  parent_email?: string
+  parent_phone?: string
   created_at: string
 }
 
@@ -127,6 +130,9 @@ export default function StudentsPage() {
     reset({
       fullName: student.full_name,
       yearGroupId: student.year_group_id || '',
+      parentName: student.parent_name || '',
+      parentEmail: student.parent_email || '',
+      parentPhone: student.parent_phone || '',
     })
     setShowDialog(true)
   }
@@ -268,6 +274,30 @@ export default function StudentsPage() {
                 <p className="text-sm text-destructive">
                   {errors.yearGroupId.message as string}
                 </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="parentName">Parent Name (optional)</Label>
+              <Input id="parentName" {...register('parentName')} placeholder="John Smith" />
+              {errors.parentName && (
+                <p className="text-sm text-destructive">{errors.parentName.message as string}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="parentEmail">Parent Email (optional)</Label>
+              <Input id="parentEmail" type="email" {...register('parentEmail')} placeholder="parent@example.com" />
+              {errors.parentEmail && (
+                <p className="text-sm text-destructive">{errors.parentEmail.message as string}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="parentPhone">Parent Phone (optional)</Label>
+              <Input id="parentPhone" {...register('parentPhone')} placeholder="+44 123 456 7890" />
+              {errors.parentPhone && (
+                <p className="text-sm text-destructive">{errors.parentPhone.message as string}</p>
               )}
             </div>
 

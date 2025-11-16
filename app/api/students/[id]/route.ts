@@ -3,6 +3,28 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { studentSchema } from '@/lib/validations'
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireAuth()
+    const supabase = await createClient()
+    const { id } = await params
+
+    const { data, error } = await supabase
+      .from('students')
+      .select('id, full_name, school_year_group')
+      .eq('id', id)
+      .single()
+
+    if (error) throw error
+    return NextResponse.json(data)
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -27,6 +49,9 @@ export async function PUT(
         full_name: validated.fullName,
         year_group_id: validated.yearGroupId,
         school_year_group: yearGroup?.name || '', // Keep for backward compatibility
+        parent_name: validated.parentName || null,
+        parent_email: validated.parentEmail || null,
+        parent_phone: validated.parentPhone || null,
       })
       .eq('id', id)
       .select()

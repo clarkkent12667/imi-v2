@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { ArrowLeft, Plus, BookOpen } from 'lucide-react'
+import { ArrowLeft, BookOpen, ClipboardList } from 'lucide-react'
 
 export default async function ClassDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth('teacher')
@@ -60,17 +60,9 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
             Back to Classes
           </Button>
         </Link>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">{classData.name}</h1>
-            <p className="text-muted-foreground">Manage students and work records</p>
-          </div>
-          <Link href={`/teacher/classes/${id}/work`}>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Work Record
-            </Button>
-          </Link>
+        <div>
+          <h1 className="text-3xl font-bold">{classData.name}</h1>
+          <p className="text-muted-foreground">Manage students and work records</p>
         </div>
       </div>
 
@@ -97,12 +89,20 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
                     <TableCell className="font-medium">{student.full_name}</TableCell>
                     <TableCell>{student.school_year_group}</TableCell>
                     <TableCell className="text-right">
-                      <Link href={`/teacher/classes/${id}/students/${student.id}`}>
-                        <Button variant="ghost" size="sm">
-                          <BookOpen className="mr-2 h-4 w-4" />
-                          View Progress
-                        </Button>
-                      </Link>
+                      <div className="flex justify-end gap-2">
+                        <Link href={`/teacher/classes/${id}/students/${student.id}/record-work-sheet`}>
+                          <Button variant="default" size="sm">
+                            <ClipboardList className="mr-2 h-4 w-4" />
+                            Record Work
+                          </Button>
+                        </Link>
+                        <Link href={`/teacher/classes/${id}/students/${student.id}`}>
+                          <Button variant="ghost" size="sm">
+                            <BookOpen className="mr-2 h-4 w-4" />
+                            View Progress
+                          </Button>
+                        </Link>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

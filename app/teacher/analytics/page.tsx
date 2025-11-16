@@ -1,31 +1,264 @@
-'use client'
-
-import { useState, useEffect } from 'react'
+import { requireAuth } from '@/lib/auth'
+import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts'
+import { Suspense } from 'react'
+import dynamic from 'next/dynamic'
+import { cache } from 'react'
 
-export default function TeacherAnalyticsPage() {
-  const [analytics, setAnalytics] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
+// Lazy load chart component to reduce initial bundle size
+const TeacherAnalyticsCharts = dynamic(() => import('@/components/teacher/analytics-charts'), {
+  loading: () => (
+    <Card>
+      <CardContent className="py-8 text-center text-muted-foreground">
+        Loading charts...
+      </CardContent>
+    </Card>
+  ),
+  ssr: false, // Charts don't need SSR
+})
 
-  useEffect(() => {
-    fetch('/api/analytics')
-      .then((res) => res.json())
-      .then((data) => {
-        setAnalytics(data)
-        setIsLoading(false)
-      })
-      .catch(() => setIsLoading(false))
-  }, [])
+// Cache analytics query per request
+const getTeacherAnalytics = cache(async (teacherId: string) => {
+  const supabase = await createClient()
+  
+  // Get teacher's classes
+  const { data: classes } = await supabase
+    .from('classes')
+    .select('id')
+    .eq('teacher_id', teacherId)
+  
+  const classIds = classes?.map((c) => c.id) || []
+  
+  if (classIds.length === 0) {
+    return null
+  }
+  
+  // Fetch analytics data for teacher's classes
+  const { data: workRecords, error } = await supabase
+    .from('work_records')
+    .select(`
+      id,
+      marks_obtained,
+      total_marks,
+      percentage,
+      work_type,
+      status,
+      assigned_date,
+      due_date,
+      subject_id,
+      topic_id,
+      subtopic_id,
+      class_id,
+      student_id,
+      subjects(name),
+      topics(name),
+      subtopics(name),
+      classes(name, year_group_id),
+      students(id, full_name, year_group_id),
+      year_groups!classes_year_group_id_fkey(name)
+    `)
+    .in('class_id', classIds)
+    .limit(5000)
+  
+  if (error) {
+    console.error('Error fetching analytics:', error)
+    return null
+  }
+  
+  // Calculate basic metrics
+  const totalRecords = workRecords?.length || 0
+  const averagePercentage =
+    workRecords && workRecords.length > 0
+      ? workRecords.reduce((sum, r) => sum + (r.percentage || 0), 0) / workRecords.length
+      : 0
+  
+  // Work type breakdown
+  const homeworkCount = workRecords?.filter((r) => r.work_type === 'homework').length || 0
+  const classworkCount = workRecords?.filter((r) => r.work_type === 'classwork').length || 0
+  const pastPaperCount = workRecords?.filter((r) => r.work_type === 'past_paper').length || 0
+  
+  // Work status breakdown
+  const notSubmittedCount = workRecords?.filter((r) => r.status === 'not_submitted').length || 0
+  const submittedCount = workRecords?.filter((r) => r.status === 'submitted').length || 0
+  const resitCount = workRecords?.filter((r) => r.status === 'resit').length || 0
+  const reAssignedCount = workRecords?.filter((r) => r.status === 're_assigned').length || 0
+  
+  // Performance by subject
+  const subjectPerformance: Record<string, { name: string; count: number; average: number }> = {}
+  workRecords?.forEach((record) => {
+    const subjects = record.subjects
+    let subjectName = 'Unknown'
+    if (subjects && !Array.isArray(subjects) && typeof subjects === 'object' && 'name' in subjects) {
+      subjectName = (subjects as { name: string }).name || 'Unknown'
+    }
+    if (!subjectPerformance[subjectName]) {
+      subjectPerformance[subjectName] = { name: subjectName, count: 0, average: 0 }
+    }
+    subjectPerformance[subjectName].count++
+    subjectPerformance[subjectName].average += record.percentage || 0
+  })
+  
+  Object.keys(subjectPerformance).forEach((key) => {
+    subjectPerformance[key].average /= subjectPerformance[key].count
+  })
+  
+  // Performance by year group
+  const yearGroupPerformance: Record<string, { name: string; count: number; average: number }> = {}
+  workRecords?.forEach((record) => {
+    const yearGroup = record.year_groups
+    let yearGroupName = 'Unknown'
+    if (yearGroup && !Array.isArray(yearGroup) && typeof yearGroup === 'object' && 'name' in yearGroup) {
+      yearGroupName = (yearGroup as { name: string }).name || 'Unknown'
+    }
+    if (!yearGroupPerformance[yearGroupName]) {
+      yearGroupPerformance[yearGroupName] = { name: yearGroupName, count: 0, average: 0 }
+    }
+    yearGroupPerformance[yearGroupName].count++
+    yearGroupPerformance[yearGroupName].average += record.percentage || 0
+  })
+  
+  Object.keys(yearGroupPerformance).forEach((key) => {
+    yearGroupPerformance[key].average /= yearGroupPerformance[key].count
+  })
+  
+  // Performance by work type
+  const workTypePerformance: Record<string, { name: string; count: number; average: number }> = {}
+  workRecords?.forEach((record) => {
+    const workType = record.work_type || 'unknown'
+    if (!workTypePerformance[workType]) {
+      workTypePerformance[workType] = { name: workType, count: 0, average: 0 }
+    }
+    workTypePerformance[workType].count++
+    workTypePerformance[workType].average += record.percentage || 0
+  })
+  
+  Object.keys(workTypePerformance).forEach((key) => {
+    workTypePerformance[key].average /= workTypePerformance[key].count
+  })
+  
+  // Class performance
+  const classPerformance: Record<string, { name: string; count: number; average: number }> = {}
+  workRecords?.forEach((record) => {
+    const classData = record.classes
+    let className = 'Unknown'
+    if (classData && !Array.isArray(classData) && typeof classData === 'object' && 'name' in classData) {
+      className = (classData as { name: string }).name || 'Unknown'
+    }
+    if (!classPerformance[className]) {
+      classPerformance[className] = { name: className, count: 0, average: 0 }
+    }
+    classPerformance[className].count++
+    classPerformance[className].average += record.percentage || 0
+  })
+  
+  Object.keys(classPerformance).forEach((key) => {
+    classPerformance[key].average /= classPerformance[key].count
+  })
+  
+  const sortedClasses = Object.values(classPerformance).sort((a, b) => b.average - a.average)
+  
+  // Performance over time (last 30 days, grouped by week)
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const recentRecords = workRecords?.filter(
+    (r) => new Date(r.assigned_date) >= thirtyDaysAgo
+  ) || []
+  
+  // Group by week
+  const weeklyPerformance: Record<string, { week: string; count: number; average: number }> = {}
+  recentRecords.forEach((r) => {
+    const date = new Date(r.assigned_date)
+    const weekStart = new Date(date)
+    weekStart.setDate(date.getDate() - date.getDay())
+    const weekKey = weekStart.toISOString().split('T')[0]
+    
+    if (!weeklyPerformance[weekKey]) {
+      weeklyPerformance[weekKey] = { week: weekKey, count: 0, average: 0 }
+    }
+    weeklyPerformance[weekKey].count++
+    weeklyPerformance[weekKey].average += r.percentage || 0
+  })
+  
+  Object.keys(weeklyPerformance).forEach((key) => {
+    weeklyPerformance[key].average /= weeklyPerformance[key].count
+  })
+  
+  const performanceOverTime = Object.values(weeklyPerformance)
+    .sort((a, b) => a.week.localeCompare(b.week))
+    .map((item) => ({
+      date: new Date(item.week).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      percentage: item.average,
+    }))
+  
+  // Student engagement
+  const studentEngagement: Record<string, { name: string; count: number; average: number }> = {}
+  workRecords?.forEach((record) => {
+    const student = record.students
+    const studentId = record.student_id
+    const studentName = (student && !Array.isArray(student) && typeof student === 'object' && 'full_name' in student)
+      ? (student as { full_name: string }).full_name
+      : 'Unknown'
+    
+    if (!studentEngagement[studentId]) {
+      studentEngagement[studentId] = { name: studentName, count: 0, average: 0 }
+    }
+    studentEngagement[studentId].count++
+    studentEngagement[studentId].average += record.percentage || 0
+  })
+  
+  Object.keys(studentEngagement).forEach((key) => {
+    studentEngagement[key].average /= studentEngagement[key].count
+  })
+  
+  const sortedStudents = Object.values(studentEngagement).sort((a, b) => b.average - a.average)
+  const topPerformers = sortedStudents.slice(0, 10)
+  const studentsNeedingAttention = sortedStudents.filter((s) => s.average < 70).slice(0, 10)
+  
+  // Topic coverage
+  const topicCoverage: Record<string, { name: string; count: number; average: number }> = {}
+  workRecords?.forEach((record) => {
+    const topic = record.topics
+    if (topic && !Array.isArray(topic) && typeof topic === 'object' && 'name' in topic) {
+      const topicName = (topic as { name: string }).name
+      if (!topicCoverage[topicName]) {
+        topicCoverage[topicName] = { name: topicName, count: 0, average: 0 }
+      }
+      topicCoverage[topicName].count++
+      topicCoverage[topicName].average += record.percentage || 0
+    }
+  })
+  
+  Object.keys(topicCoverage).forEach((key) => {
+    topicCoverage[key].average /= topicCoverage[key].count
+  })
+  
+  const sortedTopics = Object.values(topicCoverage).sort((a, b) => b.count - a.count)
+  const topTopics = sortedTopics.slice(0, 10)
+  
+  return {
+    totalRecords,
+    averagePercentage,
+    homeworkCount,
+    classworkCount,
+    pastPaperCount,
+    notSubmittedCount,
+    submittedCount,
+    resitCount,
+    reAssignedCount,
+    subjectPerformance: Object.values(subjectPerformance),
+    yearGroupPerformance: Object.values(yearGroupPerformance),
+    workTypePerformance: Object.values(workTypePerformance),
+    classPerformance: sortedClasses,
+    performanceOverTime,
+    topPerformers,
+    studentsNeedingAttention,
+    topTopics,
+  }
+})
+
+export default async function TeacherAnalyticsPage() {
+  const user = await requireAuth('teacher')
+  const analytics = await getTeacherAnalytics(user.id)
 
   return (
     <div className="p-8">
@@ -34,15 +267,16 @@ export default function TeacherAnalyticsPage() {
         <p className="text-muted-foreground">Your class and student performance metrics</p>
       </div>
 
-      {isLoading ? (
+      {!analytics ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            Loading analytics...
+            No analytics data available. Start creating work records to see analytics.
           </CardContent>
         </Card>
-      ) : analytics ? (
+      ) : (
         <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-4">
+          {/* Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-6">
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-medium">Total Records</CardTitle>
@@ -75,37 +309,80 @@ export default function TeacherAnalyticsPage() {
                 <div className="text-2xl font-bold">{analytics.classworkCount}</div>
               </CardContent>
             </Card>
-          </div>
-
-          {analytics.subjectPerformance && analytics.subjectPerformance.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Performance by Subject</CardTitle>
-                <CardDescription>Average scores across different subjects</CardDescription>
+                <CardTitle className="text-sm font-medium">Past Papers</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={analytics.subjectPerformance}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="average" fill="#8884d8" name="Average %" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div className="text-2xl font-bold">{analytics.pastPaperCount}</div>
               </CardContent>
             </Card>
-          )}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Submitted</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.submittedCount}</div>
+                <p className="text-xs text-muted-foreground">
+                  {analytics.totalRecords > 0
+                    ? ((analytics.submittedCount / analytics.totalRecords) * 100).toFixed(1)
+                    : 0}% submission rate
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Status Breakdown Cards */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Not Submitted</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.notSubmittedCount}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Resits</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.resitCount}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Re-assigned</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.reAssignedCount}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Submission Rate</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {analytics.totalRecords > 0
+                    ? ((analytics.submittedCount / analytics.totalRecords) * 100).toFixed(1)
+                    : 0}%
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Suspense fallback={
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                Loading charts...
+              </CardContent>
+            </Card>
+          }>
+            <TeacherAnalyticsCharts analytics={analytics} />
+          </Suspense>
         </div>
-      ) : (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            No analytics data available
-          </CardContent>
-        </Card>
       )}
     </div>
   )
 }
-
